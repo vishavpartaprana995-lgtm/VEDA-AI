@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#164d35">
+  <title>VEDA - Your AI Health Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <!-- AUTH SCREEN -->
+<section id="authScreen" class="auth-screen" style="display:none;">
+
+  <div class="auth-card">
+
+    <div class="brand brand-large">
+      <span class="brand-mark">♥</span> VEDA
+    </div>
+
+    <p class="eyebrow">
+      <span class="dot"></span>
+      Your AI Health Companion
+    </p>
+
+    <h2 id="authTitle">Welcome Back</h2>
+
+    <p id="authSubtitle">
+      Login to continue your health journey.
+    </p>
+
+    <!-- Signup name -->
+    <div id="nameField" style="display:none;">
+      <label>Full Name</label>
+      <input
+        type="text"
+        id="authName"
+        placeholder="Enter your name"
+      >
+    </div>
+
+    <label>Email</label>
+    <input
+      type="email"
+      id="authEmail"
+      placeholder="Enter your email"
+    >
+
+    <label>Password</label>
+    <input
+      type="password"
+      id="authPassword"
+      placeholder="Enter password"
+    >
+
+    <button
+      class="btn btn-primary btn-lg auth-submit"
+      id="authSubmitBtn"
+    >
+      Login
+    </button>
+
+    <p class="auth-switch">
+      <span id="authSwitchText">
+        Don't have an account?
+      </span>
+
+      <button
+        type="button"
+        id="authSwitchBtn"
+        class="auth-link"
+      >
+        Sign Up
+      </button>
+    </p>
+
+    <button
+      type="button"
+      id="backToWelcome"
+      class="btn btn-ghost"
+    >
+      ← Back
+    </button>
+
+  </div>
+
+</section>
+
+  <section id="welcomeScreen" class="welcome-screen">
+    <div class="welcome-leaf leaf-a">✦</div>
+    <div class="welcome-leaf leaf-b">✦</div>
+    <div class="welcome-content">
+      <div class="brand brand-large"><span class="brand-mark">♥</span> VEDA</div>
+      <span class="eyebrow"><span class="dot"></span> Your AI Health Companion</span>
+      <h1>Your Health<br><em>Journey, Simplified.</em></h1>
+      <p>Understand your reports, organize your records, manage medicines and appointments — all with the power of AI.</p>
+      <div class="welcome-actions">
+        <button class="btn btn-primary btn-lg" id="startBtn">Get Started <span>→</span></button>
+        <button class="btn btn-ghost" id="demoBtn">▷ Watch Demo</button>
+      </div>
+      <div class="trust-row">
+        <span>✦ AI-Powered<br><small>Insights</small></span>
+        <span>▣ Secure & Private<br><small>Your Data</small></span>
+        <span>◎ All-in-One<br><small>Health Journey</small></span>
+      </div>
+    </div>
+    <div class="welcome-phone">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="mini-brand">♥ VEDA</div>
+        <p class="mini-greet">Good Morning,<br><strong>Dear 👋</strong></p>
+        <div class="mini-card"><span>♥</span><b>Health Score</b><strong>Good</strong></div>
+        <div class="mini-grid">
+          <div>💊<b>2 / 3</b><small>Medicines</small></div>
+          <div>▣<b>12 Oct</b><small>Appointment</small></div>
+        </div>
+        <div class="mini-ai">🤖 Ask me anything<br><small>about your health...</small> →</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-mark">♥</span> VEDA</div>
+      <div class="sidebar-user">
+        <div class="avatar">VP</div>
+        <div><strong id="sidebarName">Dear</strong><small>Student</small></div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="dashboard"><span>⌂</span> Dashboard</button>
+        <button class="nav-item" data-view="copilot"><span>✦</span> AI Copilot</button>
+        <button class="nav-item" data-view="records"><span>▣</span> Medical Records</button>
+        <button class="nav-item" onclick="openHealthIdentity()"><span>🪪</span> Health Identity</button>
+        <button class="nav-item" data-view="medicine-lens"><span>◉</span> Medicine Lens</button>
+        <button class="nav-item" data-view="medicines"><span>♧</span> Medicines</button>
+        <button class="nav-item" data-view="appointments"><span>□</span> Appointments</button>
+        <button class="nav-item" data-view="timeline"><span>◌</span> Timeline</button>
+        <button class="nav-item" data-view="trends"><span>⌁</span> Health Trends</button>
+        <button class="nav-item" data-view="emergency"><span>✚</span> Emergency Card</button>
+        <button class="nav-item" data-view="profile"><span>○</span> Profile</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button id="resetDemo" class="nav-item"><span>↻</span> Reset Demo</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="menuBtn">☰</button>
+        <div class="search-box"><span>⌕</span><input id="globalSearch" placeholder="Search your health records, ask AI, or scan medicine..."></div>
+        <div class="top-actions"><label class="language-picker-label" for="appLanguage">🌐</label><select id="appLanguage" class="language-picker" aria-label="Choose app language" onchange="setAppLanguage(this.value)"><option value="en">English</option><option value="hi">हिन्दी</option><option value="pa">ਪੰਜਾਬੀ</option><option value="te">తెలుగు</option><option value="ta">தமிழ்</option></select><button class="icon-btn">♧</button><div class="avatar avatar-sm">VP</div><span id="topbarName">Dear</span></div>
+      </header>
+
+      <div id="viewContainer"></div>
+    </main>
+  </div>
+
+
+    <nav class="mobile-nav" id="mobileNav">
+      <button onclick="go('dashboard')" data-mobile-view="dashboard"><span>⌂</span><small>Home</small></button>
+      <button onclick="go('records')" data-mobile-view="records"><span>▣</span><small>Records</small></button>
+      <button onclick="go('medicine-lens')" data-mobile-view="medicine-lens" class="scan-main"><span>◉</span><small>Scan</small></button>
+      <button onclick="go('copilot')" data-mobile-view="copilot"><span>✦</span><small>AI</small></button>
+      <button onclick="go('profile')" data-mobile-view="profile"><span>○</span><small>Profile</small></button>
+    </nav>
+
+  <input id="reportInput" type="file" accept=".pdf,.png,.jpg,.jpeg" hidden>
+  <input id="medicineInput" type="file" accept="image/*" capture="environment" hidden>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
