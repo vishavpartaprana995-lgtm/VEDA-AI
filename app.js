@@ -94,15 +94,6 @@ function applyAppLanguage(){
     el.placeholder = dict[el.dataset.vedaEnglishPlaceholder] || el.dataset.vedaEnglishPlaceholder;
   });
 }
-const vedaLanguageObserver = new MutationObserver(() => {
-  applyAppLanguage();
-});
-
-vedaLanguageObserver.observe(document.body, {
-  childList: true,
-  subtree: true
-});
-
 
 async function testSupabaseConnection() {
     const { data, error } = await supabase
@@ -981,7 +972,54 @@ function reportAnalysis(){
 function medicineLens(){
  return `<section class="view"><div class="view-head"><div><div class="kicker">AI Vision</div><h2>Medicine Lens 📸</h2><p>Scan a medicine strip or bottle to understand what it is and connect it to your records.</p></div></div>
  <div class="grid two-col">
-  <div class="camera-wrap"><div style="width:100%;display:flex;justify-content:space-between"><span>◉ Live camera</span><span>⚙</span></div><div class="camera-frame"><div class="fake-strip">PARACETAMOL<br><small>TABLETS IP 500 mg</small></div></div><p style="font-size:10px;color:#b8c6bc;text-align:center">Position the medicine name, strength and manufacturer clearly.</p><button class="shutter" onclick="openMedicinePicker()" aria-label="Capture medicine"></button><div><button class="btn btn-primary btn-sm" onclick="openMedicinePicker()">📷 Use Camera / Upload</button></div></div>
+  <div class="camera-wrap">
+  <h3>Live Medicine Scanner</h3>
+
+  <video id="medicineVideo"
+         autoplay
+         playsinline
+         style="width:100%;border-radius:12px;display:none">
+  </video>
+
+  <canvas id="medicineCanvas" hidden></canvas>
+
+  <img id="medicinePreview"
+       alt="Medicine photo preview"
+       style="width:100%;display:none;border-radius:12px">
+
+  <input id="medicineInput"
+         type="file"
+         accept="image/*"
+         hidden>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+    <button class="btn btn-primary" onclick="startMedicineCamera()">
+      Start Camera
+    </button>
+
+    <button class="btn btn-primary" onclick="captureMedicinePhoto()">
+      Capture Photo
+    </button>
+
+    <button class="btn btn-outline"
+            onclick="openMedicinePicker()">
+      Upload Image
+    </button>
+
+    <button class="btn btn-outline" onclick="stopMedicineCamera()">
+      Stop Camera
+    </button>
+  </div>
+
+  <p id="medicineCameraStatus" role="status">
+    Start the camera or upload a medicine photo.
+  </p>
+
+  <div id="medicineResult" class="card" style="margin-top:15px">
+  Upload or capture a medicine photo to identify it.
+</div>
+
+</div>
   <div class="card"><div class="card-title"><h3>How it works</h3><span>Don't guess</span></div>
    ${["Capture the full strip or bottle","OCR / Vision reads name + strength","Verify against trusted drug information","AI explains it in simple language","Match it against your saved prescription"].map((x,i)=>`<div style="display:flex;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid #edf0eb"><span class="stat-icon" style="margin:0;width:28px;height:28px">${i+1}</span><span style="font-size:11px">${x}</span></div>`).join("")}
    <div class="card insight" style="margin-top:15px"><h3>Safety rule</h3><p>If the image cannot reliably identify the medicine, the app asks for a clearer photo instead of guessing.</p></div>
@@ -989,16 +1027,256 @@ function medicineLens(){
  </div>
  </section>`;
 }
-function openMedicinePicker(){$("medicineInput").click()}
-$("medicineInput").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;showMedicineResult(f);e.target.value=""})
-function showMedicineResult(f){
- showModal(`<div class="view-head"><div><div class="kicker">AI Medicine Lens</div><h2>Medicine Identified</h2><p>${escapeHtml(f.name)}</p></div><button class="btn btn-outline btn-sm" onclick="closeModal()">Close</button></div>
- <div class="medicine-card"><div class="medicine-img">💊</div><div><h2 style="margin:0 0 6px">Paracetamol 500 mg <span class="status good">Verified demo</span></h2><div class="detail-list">
- <div><b>ACTIVE INGREDIENT</b>Paracetamol (Acetaminophen)</div><div><b>GENERAL PURPOSE</b>Pain relief and fever reduction</div><div><b>MEDICINE TYPE</b>Analgesic / antipyretic</div><div><b>MANUFACTURER</b>Demo label</div></div></div></div>
- <div class="card insight" style="margin-top:15px"><h3>What is it used for?</h3><p>In this prototype, the AI converts verified medicine information into simple language. It does not decide whether you personally should take it.</p></div>
- <div class="grid two-col page-section"><button class="btn btn-outline" onclick="go('medicines');closeModal()">View Medicine Cabinet</button><button class="btn btn-primary" onclick="addScannedMedicine();closeModal()">Add to My Medicines</button></div>`);
+
+
+
+async function identifyMedicine(imageSource) {
+  const result = document.getElementById("medicineResult");
+  const status = document.getElementById("medicineCameraStatus");
+
+  if (!result) {
+    console.error("Medicine result area not found.");
+    return;
+  }
+
+  result.textContent = "Loading OCR and reading medicine label...";
+
+  try {
+    // Load OCR library if it has not loaded yet
+    if (!window.Tesseract) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+        script.onload = resolve;
+        script.onerror = () =>
+          reject(new Error("Could not load OCR library. Check internet."));
+        document.head.appendChild(script);
+      });
+    }
+
+    const { data } = await window.Tesseract.recognize(
+      imageSource,
+      "eng",
+      {
+        logger: message => {
+          if (status && message.status) {
+            status.textContent =
+              "OCR: " + message.status +
+              (message.progress != null
+                ? " " + Math.round(message.progress * 100) + "%"
+                : "");
+          }
+        }
+      }
+    );
+
+    const detectedText = (data.text || "").trim();
+    
+const lines = detectedText
+  .split(/\n/)
+  .map(line => line.trim())
+  .filter(Boolean);
+
+// Look for medicine names and strengths in the extracted text
+const strengthPattern =
+  /\b\d+(?:\.\d+)?\s*(?:mg|mcg|µg|g|ml|mL|IU|%|mg\/ml)\b/i;
+
+const strengthLine = lines.find(line => strengthPattern.test(line));
+
+const nameLine = lines.find(line =>
+  /[a-zA-Z]{4,}/.test(line) &&
+  !/manufactured|expiry|expires|batch|mfg|marketed|price|mrp|license|composition/i.test(line)
+);
+
+const medicineName = nameLine || "Name not confidently detected";
+const strength = strengthLine
+  ? strengthLine.match(strengthPattern)[0]
+  : "Strength not detected";
+
+
+    result.replaceChildren();
+    
+    result.style.background = "#ffffff";
+    result.style.color = "#1f2937";
+    result.style.padding = "20px";
+    result.style.borderRadius = "14px";
+    result.style.border = "1px solid #d1d5db";
+    result.style.textAlign = "left";
+
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Medicine Scan Result";
+    heading.style.color = "#14532d";
+    heading.style.fontSize = "22px";
+    heading.style.marginBottom = "16px";
+    result.appendChild(heading);
+
+    const output = document.createElement("pre");
+    output.style.whiteSpace = "pre-wrap";
+    output.style.color = "#1f2937";
+    output.style.background = "#f9fafb";
+    output.style.padding = "12px";
+    output.style.borderRadius = "8px";
+    output.textContent = detectedText ||
+      "No readable text found. Try a clearer photo.";
+    result.appendChild(output);
+
+    const dose = document.createElement("p");
+    dose.textContent = "Detected strength: " + strength;
+    dose.style.color = "#1f2937";
+    result.appendChild(dose);
+
+    const note = document.createElement("p");
+    note.textContent =
+      "This reads packaging text only. Verify the medicine and strength with a pharmacist.";
+    result.appendChild(note);
+
+    if (status) status.textContent = "Scan complete.";
+
+  } catch (error) {
+    console.error("Medicine OCR error:", error);
+    result.textContent = error.message ||
+      "Could not scan this image. Please try again.";
+    if (status) status.textContent = "Scan failed.";
+  }
 }
-function addScannedMedicine(){state.medicines.unshift({id:"m"+Date.now(),name:"Paracetamol",strength:"500 mg",schedule:"From scanned medicine",status:"Active",source:"Medicine Lens"});persist();toast("Medicine added to your cabinet")}
+
+
+
+let medicineCameraStream = null;
+
+function openMedicinePicker() {
+  const input = document.getElementById("medicineInput");
+  if (input) input.click();
+}
+
+async function startMedicineCamera() {
+  const video = document.getElementById("medicineVideo");
+  const status = document.getElementById("medicineCameraStatus");
+
+  if (!video || !status) return;
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    status.textContent =
+      "Camera unavailable. Use Upload Image instead.";
+    return;
+  }
+
+  try {
+    stopMedicineCamera();
+
+    medicineCameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    });
+
+    video.srcObject = medicineCameraStream;
+    video.style.display = "block";
+    await video.play();
+
+    status.textContent =
+      "Camera ready. Position the medicine clearly.";
+  } catch (error) {
+    console.error("Medicine camera error:", error);
+    status.textContent =
+      "Camera unavailable or permission denied. Please upload an image.";
+  }
+}
+
+function captureMedicinePhoto() {
+  const video = document.getElementById("medicineVideo");
+  const canvas = document.getElementById("medicineCanvas");
+  const preview = document.getElementById("medicinePreview");
+  const status = document.getElementById("medicineCameraStatus");
+  
+
+  if (!video || !canvas || !preview || !video.videoWidth) {
+    if (status) {
+      status.textContent = "Start the camera before capturing.";
+    }
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  context.drawImage(video, 0, 0);
+
+  preview.src = canvas.toDataURL("image/jpeg", 0.9);
+  preview.style.display = "block";
+  identifyMedicine(preview.src);
+
+  if (status) {
+    status.textContent =
+      "Photo captured. Medicine identification is not connected yet.";
+  }
+}
+
+function stopMedicineCamera() {
+  if (medicineCameraStream) {
+    medicineCameraStream.getTracks().forEach(track => track.stop());
+    medicineCameraStream = null;
+  }
+
+  const video = document.getElementById("medicineVideo");
+
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.style.display = "none";
+  }
+}
+
+// Use a delegated listener because the medicine input is rendered dynamically.
+document.addEventListener("change", event => {
+  const input = event.target;
+
+  if (!input || input.id !== "medicineInput") return;
+
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const status = document.getElementById("medicineCameraStatus");
+  const preview = document.getElementById("medicinePreview");
+
+  if (!file.type.startsWith("image/")) {
+    if (status) {
+      status.textContent = "Please upload an image file.";
+    }
+    input.value = "";
+    return;
+  }
+
+  if (preview) {
+    if (preview.dataset.objectUrl) {
+      URL.revokeObjectURL(preview.dataset.objectUrl);
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    preview.dataset.objectUrl = objectUrl;
+    preview.src = objectUrl;
+    preview.style.display = "block";
+
+    preview.onload = () => {
+      identifyMedicine(preview.src);
+    };
+  }
+
+  if (status) {
+    status.textContent = "Image uploaded. Reading medicine label...";
+  }
+
+  input.value = "";
+});
+
+window.openMedicinePicker = openMedicinePicker;
+window.startMedicineCamera = startMedicineCamera;
+window.captureMedicinePhoto = captureMedicinePhoto;
+window.stopMedicineCamera = stopMedicineCamera;
 
 function medicines(){
  return `<section class="view"><div class="view-head"><div><div class="kicker">Medication</div><h2>My Medicine Cabinet</h2><p>Keep your medicines organized and connected to prescriptions.</p></div><button class="btn btn-primary btn-sm" onclick="go('medicine-lens')">📷 Scan New Medicine</button></div>
@@ -1734,10 +2012,6 @@ syncDisplayName();
         }
     });
 }
-// =====================================
-// VEDA - SAVE MEDICAL RECORD
-// =====================================
-
 async function saveMedicalRecord(record) {
     try {
 
