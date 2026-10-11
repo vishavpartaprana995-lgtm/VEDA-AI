@@ -94,6 +94,15 @@ function applyAppLanguage(){
     el.placeholder = dict[el.dataset.vedaEnglishPlaceholder] || el.dataset.vedaEnglishPlaceholder;
   });
 }
+const vedaLanguageObserver = new MutationObserver(() => {
+  applyAppLanguage();
+});
+
+vedaLanguageObserver.observe(document.body, {
+  childList: true,
+  subtree: true
+});
+
 
 async function testSupabaseConnection() {
     const { data, error } = await supabase
